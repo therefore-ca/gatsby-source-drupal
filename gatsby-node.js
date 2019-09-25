@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 const axios = require(`axios`);
 
@@ -9,12 +9,12 @@ const jsonApisHit = {};
 const {
   nodeFromData,
   downloadFile,
-  isFileNode,
+  isFileNode
 } = require(`./normalize`);
 
 const {
   handleReferences,
-  handleWebhookUpdate,
+  handleWebhookUpdate
 } = require(`./utils`);
 
 const asyncPool = require(`tiny-async-pool`);
@@ -27,7 +27,7 @@ exports.sourceNodes = async ({
   cache,
   createNodeId,
   createContentDigest,
-  reporter,
+  reporter
 }, pluginOptions) => {
   let {
     baseUrl,
@@ -36,10 +36,10 @@ exports.sourceNodes = async ({
     filters,
     headers,
     params,
-    concurrentFileRequests,
+    concurrentFileRequests
   } = pluginOptions;
   const {
-    createNode,
+    createNode
   } = actions;
 
   const drupalFetchActivity = reporter.activityTimer(`Fetch data from Drupal`); // Default apiBase to `jsonapi`
@@ -65,24 +65,17 @@ exports.sourceNodes = async ({
 
   drupalFetchActivity.start();
 
-
   const apiUrl = `${baseUrl}/${apiBase}`;
   reporter.info(`Staring API pull from: ${apiUrl}`);
   const data = await axios.get(apiUrl, {
     auth: basicAuth,
     headers,
-    params,
+    params
   });
   const allData = await Promise.all(_.map(data.data.links, async (url, type) => {
-    if (type === `self`) {
-      return;
-    }
-    if (!url) {
-      return;
-    }
-    if (!type) {
-      return;
-    }
+    if (type === `self`) return;
+    if (!url) return;
+    if (!type) return;
 
     const getNext = async (url, data = []) => {
       let targetUrl = '';
@@ -116,7 +109,7 @@ exports.sourceNodes = async ({
         d = await axios.get(targetUrl, {
           auth: basicAuth,
           headers,
-          params,
+          params
         });
       } catch (error) {
         if (error.response && error.response.status == 405) {
@@ -155,17 +148,16 @@ exports.sourceNodes = async ({
     const data = await getNext(url);
     const result = {
       type,
-      data, // eslint-disable-next-line consistent-return
-    };
+      data
+    }; // eslint-disable-next-line consistent-return
+
     return result;
   }));
   drupalFetchActivity.end();
   const nodes = new Map(); // first pass - create basic nodes
 
   _.each(allData, contentType => {
-    if (!contentType) {
-      return;
-    }
+    if (!contentType) return;
 
     _.each(contentType.data, datum => {
       const node = nodeFromData(datum, createNodeId);
@@ -181,7 +173,7 @@ exports.sourceNodes = async ({
   nodes.forEach(node => {
     handleReferences(node, {
       getNode: nodes.get.bind(nodes),
-      createNodeId,
+      createNodeId
     });
   });
   reporter.info(`Downloading remote files from Drupal`); // Download all files (await for each pool to complete to fix concurrency issues)
@@ -197,7 +189,7 @@ exports.sourceNodes = async ({
         store,
         cache,
         createNode,
-        createNodeId,
+        createNodeId
       }, pluginOptions);
     });
     downloadingFilesActivity.end();
@@ -218,10 +210,10 @@ exports.onCreateDevServer = ({
   store,
   cache,
   createContentDigest,
-  reporter,
+  reporter
 }, pluginOptions) => {
   app.use(`/___updatePreview/`, bodyParser.text({
-    type: `application/json`,
+    type: `application/json`
   }), async (req, res) => {
     // we are missing handling of node deletion
     const nodeToUpdate = JSON.parse(JSON.parse(req.body)).data;
@@ -233,7 +225,7 @@ exports.onCreateDevServer = ({
       createContentDigest,
       getNode,
       reporter,
-      store,
+      store
     }, pluginOptions);
   });
 };

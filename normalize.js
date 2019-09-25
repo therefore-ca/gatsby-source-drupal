@@ -1,17 +1,17 @@
-'use strict';
+"use strict";
 
 const _ = require('lodash');
 
-var _interopRequireDefault = require('@babel/runtime/helpers/interopRequireDefault');
+var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefault");
 
-var _objectWithoutPropertiesLoose2 = _interopRequireDefault(require('@babel/runtime/helpers/objectWithoutPropertiesLoose'));
+var _objectWithoutPropertiesLoose2 = _interopRequireDefault(require("@babel/runtime/helpers/objectWithoutPropertiesLoose"));
 
 const {
-  URL,
+  URL
 } = require(`url`);
 
 const {
-  createRemoteFileNode,
+  createRemoteFileNode
 } = require(`gatsby-source-filesystem`);
 
 const nodeFromData = (datum, createNodeId) => {
@@ -21,26 +21,26 @@ const nodeFromData = (datum, createNodeId) => {
   }
 
   const {
-      attributes: {
-        id: _attributes_id,
-      } = {},
-    } = datum,
-    attributes = (0, _objectWithoutPropertiesLoose2.default)(datum.attributes, ['id']);
+    attributes: {
+      id: _attributes_id
+    } = {}
+  } = datum,
+    attributes = (0, _objectWithoutPropertiesLoose2.default)(datum.attributes, ["id"]);
   const preservedId = typeof _attributes_id !== `undefined` ? {
-    _attributes_id,
+    _attributes_id
   } : {};
   return Object.assign({
     id: createNodeId(datum.id),
     drupal_id: datum.id,
     parent: null,
     drupal_parent_menu_item: attributes.parent,
-    children: [],
-  }, attributes, preservedId, {
+    children: []
+  }, attributes, {}, preservedId, {
     drupal_relationships: datum.relationships,
     relationships: {},
     internal: {
-      type: datum.type.replace(/-|__|:|\.|\s/g, `_`),
-    },
+      type: datum.type.replace(/-|__|:|\.|\s/g, `_`)
+    }
   });
 };
 
@@ -55,10 +55,10 @@ exports.downloadFile = async ({
   store,
   cache,
   createNode,
-  createNodeId,
+  createNodeId
 }, {
   basicAuth,
-  baseUrl,
+  baseUrl
 }) => {
   // handle file downloads
   if (isFileNode(node)) {
@@ -77,7 +77,7 @@ exports.downloadFile = async ({
 
       const auth = typeof basicAuth === `object` ? {
         htaccess_user: basicAuth.username,
-        htaccess_pass: basicAuth.password,
+        htaccess_pass: basicAuth.password
       } : {};
       fileNode = await createRemoteFileNode({
         url: url.href,
@@ -86,7 +86,7 @@ exports.downloadFile = async ({
         createNode,
         createNodeId,
         parentNodeId: node.id,
-        auth,
+        auth
       });
     } catch (e) {// Ignore
     }

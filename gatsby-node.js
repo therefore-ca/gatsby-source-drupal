@@ -4,6 +4,8 @@ const axios = require(`axios`);
 
 const _ = require(`lodash`);
 
+const jsonApisHit = {};
+
 const {
   nodeFromData,
   downloadFile,
@@ -64,7 +66,11 @@ exports.sourceNodes = async ({
   // }
 
   drupalFetchActivity.start();
-  const data = await axios.get(`${baseUrl}/${apiBase}`, {
+
+
+  const apiUrl = `${baseUrl}/${apiBase}`;
+  reporter.info(`Staring API pull from: ${apiUrl}`);
+  const data = await axios.get(apiUrl, {
     auth: basicAuth,
     headers,
     params
@@ -75,15 +81,28 @@ exports.sourceNodes = async ({
     if (!type) return;
 
     const getNext = async (url, data = []) => {
+      let targetUrl = '';
+
       if (typeof url === `object`) {
-        // url can be string or object containing href field
-        url = url.href; // Apply any filters configured in gatsby-config.js. Filters
+        // Extract the href and make sure it's using the api final url, not whatever Drupal is sending.
+        let href = String(url.href || '')
+          .replace('https://', '')
+          .replace('http://', '')
+          .replace(/X-Nf-Sign=[^&]*/, '')
+          .split('/');
+        href[0] = baseUrl;
+        // href[0] = `https://${href[0]}`;
+
+        // Final target url with base path and void of query string
+        targetUrl = href.join('/');
+
+        // Apply any filters configured in gatsby-config.js. Filters
         // can be any valid JSON API filter query string.
         // See https://www.drupal.org/docs/8/modules/jsonapi/filtering
 
         if (typeof filters === `object`) {
           if (filters.hasOwnProperty(type)) {
-            url = url + `?${filters[type]}`;
+            targetUrl += `?${filters[type]}`;
           }
         }
       }
@@ -91,7 +110,7 @@ exports.sourceNodes = async ({
       let d;
 
       try {
-        d = await axios.get(url, {
+        d = await axios.get(targetUrl, {
           auth: basicAuth,
           headers,
           params
@@ -101,16 +120,30 @@ exports.sourceNodes = async ({
           // The endpoint doesn't support the GET method, so just skip it.
           return [];
         } else {
-          console.error(`Failed to fetch ${url}`, error.message);
+          console.error(`Failed to fetch ${targetUrl}`, error.message);
           console.log(error.data);
           throw error;
         }
       }
 
       data = data.concat(d.data.data);
+      const totalEntries = _.get(d, 'data.meta.count', 'Unknown');
 
-      if (d.data.links && d.data.links.next) {
-        data = await getNext(d.data.links.next, data);
+      // Don't block loading with reporting.
+      _.defer(() => {
+        // Report on current status of data loading, ignoring 0 offset calls
+        const currentEndpoint = targetUrl.split('jsonapi')[1].split('?')[0];
+        let offset = targetUrl.match(/.*offset%5D=([\d]*)&page.*/i) || 0;
+        if (Array.isArray(offset) && offset[1]) {
+          offset = offset[1];
+          reporter.log(`${offset} of ${totalEntries} loaded @ ${currentEndpoint}`);
+        }
+      });
+
+      // Only keep spidering this route if we actually got entries from the last route.
+      const nextUrl = _.get(d, 'data.links.next', false);
+      if (nextUrl && totalEntries > 0) {
+        data = await getNext(nextUrl, data);
       }
 
       return data;
@@ -132,7 +165,11 @@ exports.sourceNodes = async ({
 
     _.each(contentType.data, datum => {
       const node = nodeFromData(datum, createNodeId);
+
+      // Valid notes generated will have IDs to leverage
+      if (node.id) {
       nodes.set(node.id, node);
+      }
     });
   }); // second pass - handle relationships and back references
 
